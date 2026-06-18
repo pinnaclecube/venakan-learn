@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   Venakan Learn — design system (Tailwind v4, CSS-first @theme)
+   Light mode only. Reuses the Venakan website language.
+     base    #FFFFFF
+     ink     #0F172A  (near-black)
+     emerald #34D399  (accent)  /  #059669 (text-weight emerald)
+     mist    #F1F5F9  (off-white)
+   No blue, no violet, no gradients on UI elements.
+   ========================================================================== */
+
+@theme {
+  /* Brand scale */
+  --color-ink: #0f172a;
+  --color-emerald: #34d399;
+  --color-emerald-strong: #059669;
+  --color-mist: #f1f5f9;
+
+  /* Semantic tokens (shadcn-compatible names) */
+  --color-background: #ffffff;
+  --color-foreground: #0f172a;
+
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0f172a;
+
+  --color-primary: #059669; /* emerald, text-weight for contrast on white */
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #f1f5f9;
+  --color-secondary-foreground: #0f172a;
+
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+
+  --color-accent: #f1f5f9;
+  --color-accent-foreground: #0f172a;
+
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+
+  --color-success: #059669;
+  --color-warning: #d97706;
+
+  --color-border: #e2e8f0;
+  --color-input: #e2e8f0;
+  --color-ring: #34d399;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Emerald focus ring, dense admin feel */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}

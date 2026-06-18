@@ -1,0 +1,1 @@
+{"root":["./vite.config.ts","./api/_auth.ts","./api/_supabaseadmin.ts","./api/accept-invite.ts","./api/disable-user.ts","./api/invite.ts"],"version":"5.9.3"}
