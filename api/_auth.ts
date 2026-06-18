@@ -51,6 +51,18 @@ export async function requireAdmin(req: VercelRequest) {
   return ctx;
 }
 
+/** Require an active staff caller (admin OR trainer). */
+export async function requireStaff(req: VercelRequest) {
+  const ctx = await getCaller(req);
+  if (
+    (ctx.caller.role !== "admin" && ctx.caller.role !== "trainer") ||
+    ctx.caller.status !== "active"
+  ) {
+    throw new HttpError(403, "Staff access required.");
+  }
+  return ctx;
+}
+
 export class HttpError extends Error {
   constructor(
     public status: number,

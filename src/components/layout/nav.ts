@@ -1,4 +1,10 @@
-import { GraduationCap, LayoutDashboard, Users, type LucideIcon } from "lucide-react";
+import {
+  FileInput,
+  GraduationCap,
+  LayoutDashboard,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import type { AppRole } from "@/lib/types";
 
 export interface NavItem {
@@ -19,6 +25,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Programs",
     href: "/trainer/programs",
     icon: LayoutDashboard,
+    roles: ["admin", "trainer"],
+  },
+  {
+    label: "Intake",
+    href: "/trainer/intake",
+    icon: FileInput,
     roles: ["admin", "trainer"],
   },
   {

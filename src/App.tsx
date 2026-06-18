@@ -7,6 +7,8 @@ import { AcceptInvitePage } from "@/pages/AcceptInvitePage";
 import { LandingRedirect } from "@/pages/LandingRedirect";
 import { UsersPage } from "@/pages/admin/UsersPage";
 import { ProgramsPage } from "@/pages/trainer/ProgramsPage";
+import { IntakePage } from "@/pages/trainer/IntakePage";
+import { ProgramDetailPage } from "@/pages/trainer/ProgramDetailPage";
 import { LearningPage } from "@/pages/trainee/LearningPage";
 
 export default function App() {
@@ -25,6 +27,22 @@ export default function App() {
         </Route>
 
         {/* Trainer console (admins + trainers) */}
+        <Route path="/trainer/intake">
+          <RequireRole roles={["admin", "trainer"]}>
+            <AppShell>
+              <IntakePage />
+            </AppShell>
+          </RequireRole>
+        </Route>
+
+        <Route path="/trainer/programs/:programId">
+          <RequireRole roles={["admin", "trainer"]}>
+            <AppShell>
+              <ProgramDetailPage />
+            </AppShell>
+          </RequireRole>
+        </Route>
+
         <Route path="/trainer/programs">
           <RequireRole roles={["admin", "trainer"]}>
             <AppShell>
