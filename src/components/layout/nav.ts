@@ -1,7 +1,9 @@
 import {
+  BarChart3,
   FileInput,
   GraduationCap,
   LayoutDashboard,
+  TrendingUp,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -34,9 +36,21 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["admin", "trainer"],
   },
   {
+    label: "Reports",
+    href: "/trainer/reports",
+    icon: BarChart3,
+    roles: ["admin", "trainer"],
+  },
+  {
     label: "My Learning",
     href: "/trainee/learning",
     icon: GraduationCap,
+    roles: ["trainee"],
+  },
+  {
+    label: "My Progress",
+    href: "/trainee/progress",
+    icon: TrendingUp,
     roles: ["trainee"],
   },
   {

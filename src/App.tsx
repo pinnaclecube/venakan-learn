@@ -9,7 +9,9 @@ import { UsersPage } from "@/pages/admin/UsersPage";
 import { ProgramsPage } from "@/pages/trainer/ProgramsPage";
 import { IntakePage } from "@/pages/trainer/IntakePage";
 import { ProgramDetailPage } from "@/pages/trainer/ProgramDetailPage";
+import { ReportsPage } from "@/pages/trainer/ReportsPage";
 import { LearningPage } from "@/pages/trainee/LearningPage";
+import { ProgressPage } from "@/pages/trainee/ProgressPage";
 
 export default function App() {
   return (
@@ -51,11 +53,27 @@ export default function App() {
           </RequireRole>
         </Route>
 
+        <Route path="/trainer/reports">
+          <RequireRole roles={["admin", "trainer"]}>
+            <AppShell>
+              <ReportsPage />
+            </AppShell>
+          </RequireRole>
+        </Route>
+
         {/* Trainee learning */}
         <Route path="/trainee/learning">
           <RequireRole roles={["trainee"]}>
             <AppShell>
               <LearningPage />
+            </AppShell>
+          </RequireRole>
+        </Route>
+
+        <Route path="/trainee/progress">
+          <RequireRole roles={["trainee"]}>
+            <AppShell>
+              <ProgressPage />
             </AppShell>
           </RequireRole>
         </Route>
