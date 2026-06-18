@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { requireAdmin, HttpError } from "./_auth";
+import { requireAdmin, HttpError } from "./_auth.js";
 
 const VALID_ROLES = ["admin", "trainer", "trainee"] as const;
 type Role = (typeof VALID_ROLES)[number];

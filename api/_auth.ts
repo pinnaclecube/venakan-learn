@@ -1,5 +1,5 @@
 import type { VercelRequest } from "@vercel/node";
-import { getAdminClient } from "./_supabaseAdmin";
+import { getAdminClient } from "./_supabaseAdmin.js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface CallerProfile {

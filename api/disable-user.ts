@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { requireAdmin, HttpError } from "./_auth";
+import { requireAdmin, HttpError } from "./_auth.js";
 
 /**
  * Admin-only. Disables a user within the admin's tenant: flips

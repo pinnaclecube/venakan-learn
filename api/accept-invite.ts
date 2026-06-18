@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getCaller, HttpError } from "./_auth";
+import { getCaller, HttpError } from "./_auth.js";
 
 /**
  * Called by the accept-invite page after the user sets their password. Flips
