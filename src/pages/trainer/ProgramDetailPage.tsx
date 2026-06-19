@@ -21,6 +21,13 @@ import {
   type RefineTarget,
 } from "@/components/program/RefineDialog";
 import { DiffView } from "@/components/program/DiffView";
+import { AssignmentDialog } from "@/components/program/AssignmentDialog";
+import {
+  loadProgramAssignment,
+  type ProgramAssignment,
+} from "@/lib/assignment";
+import { EnrollmentStatusBadge } from "@/components/reports/StatusBadge";
+import type { EnrollmentStatus } from "@/lib/reporting";
 
 interface PendingDiff {
   refinementId: string;
@@ -40,7 +47,9 @@ export function ProgramDetailPage() {
   const [rationale, setRationale] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [publishing, setPublishing] = useState(false);
+
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignment, setAssignment] = useState<ProgramAssignment | null>(null);
 
   const [refineTarget, setRefineTarget] = useState<RefineTarget | null>(null);
   const [pending, setPending] = useState<PendingDiff | null>(null);
@@ -104,6 +113,16 @@ export function ProgramDetailPage() {
     } else {
       setExercises([]);
     }
+
+    if ((prog as Program).status === "published") {
+      try {
+        setAssignment(await loadProgramAssignment(programId));
+      } catch {
+        setAssignment(null);
+      }
+    } else {
+      setAssignment(null);
+    }
     setLoading(false);
   }, [programId]);
 
@@ -111,17 +130,10 @@ export function ProgramDetailPage() {
     void load();
   }, [load]);
 
-  async function onPublish() {
-    if (!program) return;
-    setPublishing(true);
-    setError(null);
-    const { error: upErr } = await supabase
-      .from("program")
-      .update({ status: "published" })
-      .eq("id", program.id);
-    if (upErr) setError(upErr.message);
-    else await load();
-    setPublishing(false);
+  // Publishing is gated behind the assignment dialog: nothing is written until
+  // the trainer confirms there. Cancel leaves the program in 'draft'.
+  function onPublish() {
+    setAssignOpen(true);
   }
 
   async function onRollback() {
@@ -173,15 +185,17 @@ export function ProgramDetailPage() {
             <Badge variant={program.status === "published" ? "success" : "muted"}>
               {program.status}
             </Badge>
-            {program.status === "draft" && (
-              <Button size="sm" onClick={onPublish} disabled={publishing}>
-                {publishing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Publishing…
-                  </>
-                ) : (
-                  "Publish"
-                )}
+            {program.status === "draft" ? (
+              <Button size="sm" onClick={onPublish}>
+                Publish
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setAssignOpen(true)}
+              >
+                Manage assignment
               </Button>
             )}
           </div>
@@ -256,6 +270,61 @@ export function ProgramDetailPage() {
           </Button>
         </CardHeader>
       </Card>
+
+      {/* Assignment (only once published) */}
+      {program.status === "published" && (
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle className="text-base">Assignment</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Trainers
+              </p>
+              {assignment && assignment.trainers.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {assignment.trainers.map((t) => (
+                    <Badge key={t.id} variant="outline">
+                      {t.full_name ?? t.email}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No trainers assigned.
+                </p>
+              )}
+            </div>
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Enrolled trainees
+              </p>
+              {assignment && assignment.enrolled.length > 0 ? (
+                <ul className="space-y-1.5">
+                  {assignment.enrolled.map((e) => (
+                    <li
+                      key={e.profileId}
+                      className="flex items-center justify-between gap-3 text-sm"
+                    >
+                      <span className="text-ink">
+                        {e.fullName ?? "Unnamed trainee"}
+                      </span>
+                      <EnrollmentStatusBadge
+                        status={e.status as EnrollmentStatus}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No trainees enrolled yet.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Module sequence */}
       <div className="space-y-4">
@@ -401,6 +470,14 @@ export function ProgramDetailPage() {
           });
           void load();
         }}
+      />
+
+      <AssignmentDialog
+        programId={program.id}
+        programFamily={role?.family ?? null}
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+        onDone={() => void load()}
       />
     </div>
   );

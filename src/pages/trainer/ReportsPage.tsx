@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/AuthProvider";
 import {
   type EnrollmentStatus,
   type GateStatus,
@@ -79,6 +80,7 @@ function fmtDate(iso: string | null): string {
 }
 
 export function ReportsPage() {
+  const { role, profile } = useAuth();
   const [enrollments, setEnrollments] = useState<EnrollmentRow[]>([]);
   const [modules, setModules] = useState<ModuleRow[]>([]);
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
@@ -92,13 +94,41 @@ export function ReportsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+
+    // Trainers see only programs they are assigned to (the shared review queue
+    // for each). Admins see all tenant data unchanged. "Any assigned trainer
+    // sees the full shared queue" — there is NO per-trainee filtering.
+    let assignedProgramIds: string[] | null = null;
+    if (role === "trainer" && profile?.id) {
+      const ptRes = await supabase
+        .from("program_trainer")
+        .select("program_id")
+        .eq("trainer_profile_id", profile.id);
+      if (ptRes.error) {
+        setError(ptRes.error.message);
+        setLoading(false);
+        return;
+      }
+      assignedProgramIds = [
+        ...new Set(
+          (ptRes.data as { program_id: string }[]).map((r) => r.program_id),
+        ),
+      ];
+    }
+
+    let enrQuery = supabase
+      .from("enrollment")
+      .select(
+        "id, candidate_id, program_id, current_module_order, status, started_at, completed_at, created_at, candidate(track, profile(full_name)), program(id, week_count, role_definition(title))",
+      )
+      .order("created_at", { ascending: false });
+    if (assignedProgramIds !== null) {
+      // No assignments => no rows. .in([]) yields an empty set as intended.
+      enrQuery = enrQuery.in("program_id", assignedProgramIds);
+    }
+
     const [enrRes, modRes, subRes] = await Promise.all([
-      supabase
-        .from("enrollment")
-        .select(
-          "id, candidate_id, program_id, current_module_order, status, started_at, completed_at, created_at, candidate(track, profile(full_name)), program(id, week_count, role_definition(title))",
-        )
-        .order("created_at", { ascending: false }),
+      enrQuery,
       supabase
         .from("module")
         .select("id, program_id, \"order\", title, gate_type")
@@ -115,7 +145,7 @@ export function ReportsPage() {
     if (subRes.error) setError(subRes.error.message);
     else setSubmissions((subRes.data as unknown as SubmissionRow[]) ?? []);
     setLoading(false);
-  }, []);
+  }, [role, profile?.id]);
 
   useEffect(() => {
     void load();
