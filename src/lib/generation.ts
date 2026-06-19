@@ -108,6 +108,8 @@ export interface Module {
   title: string;
   objectives: string[];
   materials: string | null;
+  /** Rich ordered lesson content (Prompt 5). See LessonBlock in lib/runtime.ts. */
+  lesson: unknown[];
   gate_type: GateType;
   created_at: string;
 }

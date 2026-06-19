@@ -77,6 +77,7 @@ async function loadArtifact(
       skill_area: "",
       objectives: data.objectives ?? [],
       materials: data.materials ?? "",
+      lesson: data.lesson ?? [],
       gate_type: data.gate_type,
       exercises: [],
     };
@@ -123,6 +124,10 @@ async function applyArtifact(
         title: revised.title,
         objectives: revised.objectives ?? [],
         materials: revised.materials ?? null,
+        lesson:
+          Array.isArray(revised.lesson) && revised.lesson.length > 0
+            ? revised.lesson
+            : [{ type: "markdown", text: revised.materials || "" }],
         gate_type: revised.gate_type,
       })
       .eq("id", targetId)

@@ -83,6 +83,65 @@ export const RUBRIC_SCHEMA = {
   },
 } as const;
 
+/**
+ * A single lesson block. A lesson is an ordered array of these. Each branch is
+ * an object with additionalProperties:false and ALL keys in "required". `type`
+ * is pinned via a single-value enum (equivalent to const, definitely supported).
+ */
+export const LESSON_BLOCK_SCHEMA = {
+  anyOf: [
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["type", "text"],
+      properties: {
+        type: { type: "string", enum: ["markdown"] },
+        text: { type: "string" },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["type", "language", "code"],
+      properties: {
+        type: { type: "string", enum: ["code"] },
+        language: { type: "string" },
+        code: { type: "string" },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["type", "url", "caption"],
+      properties: {
+        type: { type: "string", enum: ["video_embed"] },
+        url: { type: "string" },
+        caption: { type: "string" },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["type", "url", "alt"],
+      properties: {
+        type: { type: "string", enum: ["image"] },
+        url: { type: "string" },
+        alt: { type: "string" },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["type", "variant", "text"],
+      properties: {
+        type: { type: "string", enum: ["callout"] },
+        variant: { type: "string", enum: ["info", "warning", "tip"] },
+        text: { type: "string" },
+      },
+    },
+  ],
+} as const;
+
 /** A single exercise. */
 export const EXERCISE_SCHEMA = {
   type: "object",
@@ -105,6 +164,7 @@ export const MODULE_SCHEMA = {
     "skill_area",
     "objectives",
     "materials",
+    "lesson",
     "gate_type",
     "exercises",
   ],
@@ -114,6 +174,7 @@ export const MODULE_SCHEMA = {
     skill_area: { type: "string" },
     objectives: { type: "array", items: { type: "string" } },
     materials: { type: "string" },
+    lesson: { type: "array", items: LESSON_BLOCK_SCHEMA },
     gate_type: { type: "string", enum: [...GATE_TYPE_VALUES] },
     exercises: { type: "array", items: EXERCISE_SCHEMA },
   },

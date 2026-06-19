@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "wouter";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -30,9 +29,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ProgressBar } from "@/components/reports/ProgressBar";
 import { BarChart, type BarDatum } from "@/components/reports/BarChart";
 import { EnrollmentStatusBadge } from "@/components/reports/StatusBadge";
+import {
+  ReviewSubmissionDialog,
+  type ReviewTarget,
+} from "@/components/program/ReviewSubmissionDialog";
 
 // --- Row shapes from the nested selects -------------------------------------
 interface EnrollmentRow {
@@ -90,6 +94,7 @@ export function ReportsPage() {
   const [programFilter, setProgramFilter] = useState<string>("all");
   const [trackFilter, setTrackFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -524,12 +529,20 @@ export function ReportsPage() {
                       {fmtDate(g.submittedAt)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Link
-                        href={`/trainer/programs/${g.programId}`}
-                        className="text-sm font-medium text-emerald-strong hover:underline"
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setReviewTarget({
+                            submissionId: g.id,
+                            traineeName: g.name,
+                            moduleTitle: g.moduleTitle,
+                          })
+                        }
                       >
                         Review
-                      </Link>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -548,6 +561,17 @@ export function ReportsPage() {
           </CardContent>
         </Card>
       )}
+
+      <ReviewSubmissionDialog
+        target={reviewTarget}
+        onOpenChange={(open) => {
+          if (!open) setReviewTarget(null);
+        }}
+        onReviewed={() => {
+          setReviewTarget(null);
+          void load();
+        }}
+      />
     </div>
   );
 }

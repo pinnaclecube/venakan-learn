@@ -11,6 +11,7 @@ import { IntakePage } from "@/pages/trainer/IntakePage";
 import { ProgramDetailPage } from "@/pages/trainer/ProgramDetailPage";
 import { ReportsPage } from "@/pages/trainer/ReportsPage";
 import { LearningPage } from "@/pages/trainee/LearningPage";
+import { LearningRuntimePage } from "@/pages/trainee/LearningRuntimePage";
 import { ProgressPage } from "@/pages/trainee/ProgressPage";
 
 export default function App() {
@@ -62,6 +63,14 @@ export default function App() {
         </Route>
 
         {/* Trainee learning */}
+        <Route path="/trainee/learning/:programId">
+          <RequireRole roles={["trainee"]}>
+            <AppShell>
+              <LearningRuntimePage />
+            </AppShell>
+          </RequireRole>
+        </Route>
+
         <Route path="/trainee/learning">
           <RequireRole roles={["trainee"]}>
             <AppShell>

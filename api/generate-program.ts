@@ -24,7 +24,17 @@ Return ONLY JSON matching this shape:
   - title: concise module title.
   - skill_area: the SPECIFIC skill_area from the role's skill_matrix this module advances.
   - objectives: array of learning objectives, each tied to that skill_area.
-  - materials: a short description of readings/resources.
+  - materials: a SHORT summary string of readings/resources (a one-or-two sentence fallback).
+  - lesson: the RICH teaching content as an ORDERED array of 3–8 blocks the trainee reads in the
+    runtime. Compose a real mini-lesson: open with a "markdown" intro block, add "markdown" blocks
+    for key concepts, include a "code" block with a concrete example where the skill is technical,
+    use a "callout" (variant info/warning/tip) for a key takeaway or pitfall, and optionally an
+    "image" or "video_embed" (use only real https:// URLs; omit if unsure). Each block is one of:
+      - { "type": "markdown", "text": "<GitHub-flavored markdown>" }
+      - { "type": "code", "language": "<lang>", "code": "<source>" }
+      - { "type": "video_embed", "url": "https://…", "caption": "…" }
+      - { "type": "image", "url": "https://…", "alt": "…" }
+      - { "type": "callout", "variant": "info"|"warning"|"tip", "text": "…" }
   - gate_type: one of "auto_pass", "trainer_review", "cross_track" — how the module is gated.
   - exercises: one or more exercises. Each exercise:
     - type: one of "code", "rag", "agent", "judge".
@@ -42,12 +52,20 @@ interface ExerciseOut {
   prompt: string;
   rubric: RubricOut;
 }
+type LessonBlockOut =
+  | { type: "markdown"; text: string }
+  | { type: "code"; language: string; code: string }
+  | { type: "video_embed"; url: string; caption: string }
+  | { type: "image"; url: string; alt: string }
+  | { type: "callout"; variant: "info" | "warning" | "tip"; text: string };
+
 interface ModuleOut {
   order: number;
   title: string;
   skill_area: string;
   objectives: string[];
   materials: string;
+  lesson: LessonBlockOut[];
   gate_type: string;
   exercises: ExerciseOut[];
 }
@@ -160,6 +178,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           title: m.title,
           objectives: m.objectives ?? [],
           materials: m.materials ?? null,
+          lesson:
+            Array.isArray(m.lesson) && m.lesson.length > 0
+              ? m.lesson
+              : [{ type: "markdown", text: m.materials || m.title }],
           gate_type: m.gate_type ?? "trainer_review",
         })
         .select("id")
