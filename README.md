@@ -112,6 +112,56 @@ After that, the admin can invite everyone else from `/admin/users`.
 Every endpoint verifies the caller's Supabase access token and role before
 using the service-role client.
 
+| Endpoint                  | Who              | Action                                                          |
+| ------------------------- | ---------------- | --------------------------------------------------------------- |
+| `POST /api/submit-and-grade` | active trainee | Queues a submission, grades it, applies the gate (Prompt 6).    |
+
+## Grading & Sandbox
+
+Auto-grading is **on** (`AUTO_GRADE_ENABLED = true` in `src/lib/runtime.ts`,
+mirrored server-side by the Prompt-6 RPCs). On submit, the trainee UI calls
+`POST /api/submit-and-grade`, which:
+
+1. `start_grading_submission` (service-role only) inserts a new submission row
+   (history is insert-only — re-grades/resubmissions append) and returns the
+   grading context.
+2. `gradeSubmission()` runs the grader for the exercise type:
+   - **code / rag / agent / cross_track** — run inside a **Vercel Sandbox**
+     MicroVM (`api/grading/sandbox.ts`).
+   - **judge** — a server-side Claude call (no sandbox), scoring the artifact
+     against the rubric (a `judge_rubric_version` sha256 snapshot is stored).
+3. `apply_grading_result` (service-role only) writes the AI grade and applies
+   the gate.
+
+**Gate semantics:** AI grades are **advisory** for `trainer_review` and
+`cross_track` gates — the trainer's `review_submission` decision is
+authoritative. **Only `auto_pass`** advances on the AI grade alone (graded +
+passed). Any `error` / `needs_manual_review` outcome routes to a trainer; the
+system never silently passes or fails.
+
+**Sandbox swap point:** all Vercel-Sandbox specifics live in
+`api/grading/sandbox.ts` behind the `GradingSandbox` interface. To change
+providers, implement that interface and update `getGradingSandbox()`. A
+`NotConfiguredSandbox` fallback returns a `needs_manual_review` grade if the
+provider is unavailable.
+
+**Untrusted-code isolation (candidate code):**
+
+- Runs only inside an isolated Vercel Sandbox MicroVM (one per submission),
+  with a short wall-clock timeout and minimal vCPU caps.
+- The sandbox is created with an **empty env** — **no secrets** ever enter it
+  (`SUPABASE_*`, `ANTHROPIC_API_KEY`, `VERCEL_*` are never forwarded). No
+  access to internal services.
+- The sandbox is always torn down (`destroy` in a `finally`).
+- Single-region (US-East) by default; treat captured output as untrusted text.
+
+**Sandbox credentials (server-only):** in production on Vercel the SDK uses the
+platform **OIDC token automatically** (`VERCEL_OIDC_TOKEN`) — no secret needed.
+For local/explicit auth, set `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, and
+`VERCEL_PROJECT_ID` (see `.env.example`). These are **server-only**: never
+prefixed with `VITE_`, never in the client bundle, and never passed into the
+candidate sandbox env.
+
 ## Deployment (Vercel)
 
 > Document-only — do not run destructively.

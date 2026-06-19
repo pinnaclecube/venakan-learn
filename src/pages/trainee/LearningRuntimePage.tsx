@@ -6,17 +6,16 @@ import {
   Lock,
   CheckCircle2,
   Send,
-  Play,
 } from "lucide-react";
 import {
   getTraineeProgram,
-  submitExercise,
-  AUTO_GRADE_ENABLED,
+  submitAndGrade,
   type TraineeProgram,
   type TraineeModule,
   type RuntimeExercise,
   type RuntimeSubmission,
-  type SubmitResult,
+  type AiGrade,
+  type SubmitAndGradeResult,
 } from "@/lib/runtime";
 import { EXERCISE_TYPE_LABELS, GATE_TYPE_LABELS } from "@/lib/generation";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -44,6 +43,73 @@ function scoreOf(grade: Record<string, unknown>): string | null {
   return null;
 }
 
+function outcomeMessage(r: SubmitAndGradeResult): string {
+  if (r.aiGrade.status === "error") {
+    return "Grading ran into an issue — your work was sent for manual review.";
+  }
+  if (r.aiGrade.status === "needs_manual_review") {
+    return "Sent for manual review.";
+  }
+  if (r.gate.advanced && r.gate.enrollment_status === "completed") {
+    return "Passed — you have completed the program!";
+  }
+  if (r.gate.advanced) {
+    return "Passed — the next module is unlocked.";
+  }
+  if (r.gate.enrollment_status === "awaiting_review") {
+    return "Submitted — awaiting trainer review.";
+  }
+  if (r.gate.gate_status === "failed") {
+    return "Not passed yet — review the feedback and resubmit.";
+  }
+  return "Submitted.";
+}
+
+// --- AI grade renderer (advisory for trainer gates) ------------------------
+function AiGradeView({ grade }: { grade: AiGrade }) {
+  const o = grade.output;
+  return (
+    <div className="space-y-2 rounded-md border border-border bg-mist/40 p-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-ink">AI grade</p>
+        {typeof grade.score === "number" && (
+          <span className="text-xs font-medium text-emerald-strong">
+            {grade.score}/{grade.max_score ?? 100}
+          </span>
+        )}
+      </div>
+      {grade.note && <p className="text-xs text-ink/80">{grade.note}</p>}
+      {grade.dimensions && grade.dimensions.length > 0 && (
+        <ul className="space-y-0.5">
+          {grade.dimensions.map((d, i) => (
+            <li key={i} className="text-xs text-ink/80">
+              <span className="font-medium">{d.name}</span> — {d.score}/{d.max}
+              {d.comment ? ` · ${d.comment}` : ""}
+            </li>
+          ))}
+        </ul>
+      )}
+      {o && (o.test_results || o.metrics || o.stdout || o.stderr) && (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-muted-foreground">
+            Captured output
+          </summary>
+          <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-mist/70 p-2 font-mono text-[11px] text-ink/80">
+            {o.metrics
+              ? `metrics: ${JSON.stringify(o.metrics, null, 2)}\n`
+              : ""}
+            {o.test_results
+              ? `tests: ${JSON.stringify(o.test_results, null, 2)}\n`
+              : ""}
+            {o.stdout ? `stdout:\n${o.stdout}\n` : ""}
+            {o.stderr ? `stderr:\n${o.stderr}` : ""}
+          </pre>
+        </details>
+      )}
+    </div>
+  );
+}
+
 // --- Exercise submission surface -------------------------------------------
 function ExerciseCard({
   exercise,
@@ -54,10 +120,11 @@ function ExerciseCard({
   exercise: RuntimeExercise;
   locked: boolean;
   submissions: RuntimeSubmission[];
-  onSubmitted: (r: SubmitResult) => void;
+  onSubmitted: (r: SubmitAndGradeResult) => void;
 }) {
   const [artifact, setArtifact] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [outcome, setOutcome] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const isCodeArea =
@@ -69,9 +136,11 @@ function ExerciseCard({
     if (locked || !artifact.trim()) return;
     setSubmitting(true);
     setError(null);
+    setOutcome(null);
     try {
-      const result = await submitExercise(exercise.id, artifact);
+      const result = await submitAndGrade(exercise.id, artifact);
       setArtifact("");
+      setOutcome(outcomeMessage(result));
       onSubmitted(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Submission failed.");
@@ -148,7 +217,8 @@ function ExerciseCard({
               >
                 {submitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Submitting…
+                    <Loader2 className="h-4 w-4 animate-spin" /> Grading in
+                    progress…
                   </>
                 ) : (
                   <>
@@ -156,12 +226,12 @@ function ExerciseCard({
                   </>
                 )}
               </Button>
-              {isCodeArea && !AUTO_GRADE_ENABLED && (
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <Play className="h-3.5 w-3.5" /> Run — available soon
-                </span>
-              )}
             </div>
+            {outcome && (
+              <p className="text-xs font-medium text-ink" role="status">
+                {outcome}
+              </p>
+            )}
           </div>
         )}
 
@@ -174,10 +244,12 @@ function ExerciseCard({
             {mine.map((s) => {
               const tfb = feedbackOf(s.trainer_grade);
               const tscore = scoreOf(s.trainer_grade);
-              const aiNote =
-                typeof s.ai_grade?.["note"] === "string"
-                  ? (s.ai_grade["note"] as string)
-                  : null;
+              const ai = s.ai_grade as AiGrade;
+              const hasGrade =
+                ai &&
+                (ai.status === "graded" ||
+                  ai.status === "needs_manual_review" ||
+                  ai.status === "error");
               return (
                 <div
                   key={s.id}
@@ -189,8 +261,15 @@ function ExerciseCard({
                     </span>
                     <GateStatusBadge status={s.gate_status} />
                   </div>
-                  {aiNote && (
-                    <p className="mt-1 text-muted-foreground">{aiNote}</p>
+                  {ai?.status === "grading" && (
+                    <p className="mt-1 text-muted-foreground">
+                      Grading in progress…
+                    </p>
+                  )}
+                  {hasGrade && (
+                    <div className="mt-1.5">
+                      <AiGradeView grade={ai} />
+                    </div>
                   )}
                   {(tfb || tscore) && (
                     <div className="mt-1.5 rounded bg-mist/60 p-2">
@@ -257,16 +336,8 @@ export function LearningRuntimePage() {
   }, [modules, selectedOrder]);
 
   const handleSubmitted = useCallback(
-    (r: SubmitResult) => {
-      if (r.advanced && r.enrollment_status === "completed") {
-        setFlash("Submitted — you have completed the program!");
-      } else if (r.advanced) {
-        setFlash("Submitted and passed — the next module is unlocked.");
-      } else if (r.note) {
-        setFlash(`Submitted — ${r.note}.`);
-      } else {
-        setFlash("Submitted.");
-      }
+    (r: SubmitAndGradeResult) => {
+      setFlash(outcomeMessage(r));
       void load();
     },
     [load],

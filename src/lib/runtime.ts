@@ -13,10 +13,13 @@ import type { ExerciseType, GateType, Rubric } from "./generation";
 // ---------------------------------------------------------------------------
 // AUTO-GRADE boundary (client side)
 // ---------------------------------------------------------------------------
-// Mirrors the server-side constant in submit_exercise(). While false, the
-// client only shows a disabled "Run — available soon" hint for code/rag/agent
-// exercises; the submission is still stored. Prompt 6 flips this to true.
-export const AUTO_GRADE_ENABLED = false;
+// TRUE as of Prompt 6: submissions are routed through /api/submit-and-grade,
+// which queues the submission (service-role start_grading_submission), runs the
+// appropriate grader (code/rag/agent in an isolated sandbox, judge via Claude),
+// then applies the gate (service-role apply_grading_result). AI grades are
+// ADVISORY for trainer_review / cross_track (the trainer decision is final);
+// only auto_pass advances on the AI grade alone.
+export const AUTO_GRADE_ENABLED = true;
 
 // ---------------------------------------------------------------------------
 // Lesson block union (the 5 rich-content block types)
@@ -50,13 +53,47 @@ export interface TraineeModule {
   exercises: RuntimeExercise[];
 }
 
+// ---------------------------------------------------------------------------
+// AI grade shape (mirrors api/grading/types.ts). ADVISORY for trainer_review /
+// cross_track gates; only auto_pass advances on the AI grade alone.
+// ---------------------------------------------------------------------------
+export interface AiGradeDimension {
+  name: string;
+  score: number;
+  max: number;
+  comment: string;
+}
+
+export interface AiGradeOutput {
+  stdout?: string;
+  stderr?: string;
+  exit_code?: number;
+  metrics?: Record<string, unknown>;
+  traces?: unknown;
+  test_results?: unknown;
+}
+
+export interface AiGrade {
+  status: "graded" | "error" | "needs_manual_review" | "queued" | "grading";
+  method?: "code" | "rag" | "agent" | "judge" | "cross_track";
+  passed?: boolean;
+  score?: number;
+  max_score?: number;
+  dimensions?: AiGradeDimension[];
+  output?: AiGradeOutput;
+  judge_rubric_version?: string;
+  note?: string;
+  error?: string;
+  graded_at?: string;
+}
+
 export interface RuntimeSubmission {
   id: string;
   exercise_id: string | null;
   module_id: string | null;
   gate_status: GateStatus;
   trainer_grade: Record<string, unknown>;
-  ai_grade: Record<string, unknown>;
+  ai_grade: AiGrade & Record<string, unknown>;
   artifact: string | null;
   submitted_at: string | null;
   reviewed_at: string | null;
@@ -89,14 +126,6 @@ export interface EnrolledProgramRow {
   total_modules: number;
 }
 
-export interface SubmitResult {
-  submission_id: string;
-  gate_status: GateStatus;
-  advanced: boolean;
-  enrollment_status: EnrollmentStatus;
-  note?: string | null;
-}
-
 export interface ReviewResult {
   submission_id: string;
   decision: "passed" | "failed";
@@ -123,16 +152,50 @@ export async function getTraineeProgram(
   return (data as TraineeProgram) ?? { enrolled: false };
 }
 
-export async function submitExercise(
+export interface GradeGateResult {
+  gate_status: GateStatus;
+  advanced: boolean;
+  enrollment_status: EnrollmentStatus;
+}
+
+export interface SubmitAndGradeResult {
+  submissionId: string;
+  aiGrade: AiGrade;
+  gate: GradeGateResult;
+}
+
+/**
+ * Submit-and-grade (Prompt 6). Routes ALL exercise types through the server-only
+ * /api/submit-and-grade endpoint with the caller's bearer token. The endpoint
+ * queues the submission (insert-only), grades it, and applies the gate. AI
+ * grades are advisory for trainer_review/cross_track; only auto_pass advances.
+ */
+export async function submitAndGrade(
   exerciseId: string,
   artifact: string,
-): Promise<SubmitResult> {
-  const { data, error } = await supabase.rpc("submit_exercise", {
-    p_exercise_id: exerciseId,
-    p_artifact: artifact,
+): Promise<SubmitAndGradeResult> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not authenticated.");
+
+  const res = await fetch("/api/submit-and-grade", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ exerciseId, artifact }),
   });
-  if (error) throw new Error(error.message);
-  return data as SubmitResult;
+
+  const json = (await res.json().catch(() => ({}))) as {
+    error?: string;
+  } & SubmitAndGradeResult;
+
+  if (!res.ok) {
+    throw new Error(json.error || `Grading failed (${res.status}).`);
+  }
+  return json;
 }
 
 export async function reviewSubmission(
