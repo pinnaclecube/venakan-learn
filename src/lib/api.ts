@@ -45,3 +45,26 @@ export function inviteUser(input: InviteUserInput) {
 export function disableUser(userId: string) {
   return authedFetch<{ ok: true }>("/api/disable-user", { userId });
 }
+
+/**
+ * Public (no auth): asks the server to email a password-reset link. Throws with
+ * "User Not Found." when no matching account exists.
+ */
+export async function requestPasswordReset(
+  email: string,
+): Promise<{ ok: true }> {
+  const res = await fetch("/api/forgot-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const json = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) {
+    throw new Error(json.error || `Request failed (${res.status}).`);
+  }
+  return { ok: true };
+}
+
+export function updateProfile(input: { fullName: string }) {
+  return authedFetch<{ ok: true }>("/api/update-profile", input);
+}
