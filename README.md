@@ -94,9 +94,12 @@ After that, the admin can invite everyone else from `/admin/users`.
 
 | Route                | Access            | Purpose                                            |
 | -------------------- | ----------------- | -------------------------------------------------- |
-| `/login`             | public            | Sign-in (no public sign-up).                       |
+| `/login`             | public            | Sign-in (no public sign-up). Links to "Forgot Password?". |
 | `/accept-invite`     | public (via link) | Invited user sets a password → status `active`.    |
+| `/forgot-password`   | public            | Request a password-reset link by email.            |
+| `/reset-password`    | public (via link) | Set a new password from the emailed recovery link. |
 | `/`                  | any active user   | Role-aware redirect (staff → Programs, trainee → My Learning). |
+| `/settings`          | any active user   | Profile settings: edit display name, change password (from the top-right user menu). |
 | `/trainer/programs`  | admin, trainer    | Placeholder shell (built later).                   |
 | `/trainee/learning`  | trainee           | Placeholder shell (built later).                   |
 | `/admin/users`       | admin             | User provisioning: list, invite, disable.          |
@@ -108,6 +111,8 @@ After that, the admin can invite everyone else from `/admin/users`.
 | `POST /api/invite`   | admin  | Creates the auth user (invited) + emails the link, writes `invitation` + `profile`. |
 | `POST /api/accept-invite` | any (self) | Flips the caller's own `profile.status` to `active`, stamps the invitation. |
 | `POST /api/disable-user`  | admin | Sets `profile.status = disabled` and bans the auth user.      |
+| `POST /api/forgot-password` | public | Verifies the email maps to a non-disabled profile (else `User Not Found.`), then emails a recovery link to `…/reset-password`. |
+| `POST /api/update-profile` | any (self) | Updates the caller's own `profile.full_name` (+ auth metadata). |
 
 Every endpoint verifies the caller's Supabase access token and role before
 using the service-role client.

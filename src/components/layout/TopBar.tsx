@@ -1,4 +1,5 @@
-import { LogOut, ChevronDown } from "lucide-react";
+import { LogOut, ChevronDown, Settings } from "lucide-react";
+import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Wordmark } from "./Wordmark";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import { ROLE_LABELS } from "@/lib/types";
 
 export function TopBar() {
   const { profile, role, signOut } = useAuth();
+  const [, navigate] = useLocation();
 
   const initials = (profile?.full_name || profile?.email || "?")
     .split(" ")
@@ -53,6 +55,10 @@ export function TopBar() {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => navigate("/settings")}>
+            <Settings className="h-4 w-4" />
+            Profile settings
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void signOut()}>
             <LogOut className="h-4 w-4" />
             Sign out

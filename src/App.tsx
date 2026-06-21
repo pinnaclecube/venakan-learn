@@ -4,6 +4,9 @@ import { RequireRole } from "@/components/auth/RequireRole";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoginPage } from "@/pages/LoginPage";
 import { AcceptInvitePage } from "@/pages/AcceptInvitePage";
+import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
+import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
+import { ProfileSettingsPage } from "@/pages/ProfileSettingsPage";
 import { LandingRedirect } from "@/pages/LandingRedirect";
 import { UsersPage } from "@/pages/admin/UsersPage";
 import { ProgramsPage } from "@/pages/trainer/ProgramsPage";
@@ -21,11 +24,22 @@ export default function App() {
         {/* Public */}
         <Route path="/login" component={LoginPage} />
         <Route path="/accept-invite" component={AcceptInvitePage} />
+        <Route path="/forgot-password" component={ForgotPasswordPage} />
+        <Route path="/reset-password" component={ResetPasswordPage} />
 
         {/* Role-aware landing */}
         <Route path="/">
           <RequireRole>
             <LandingRedirect />
+          </RequireRole>
+        </Route>
+
+        {/* Account settings (any active user) */}
+        <Route path="/settings">
+          <RequireRole>
+            <AppShell>
+              <ProfileSettingsPage />
+            </AppShell>
           </RequireRole>
         </Route>
 

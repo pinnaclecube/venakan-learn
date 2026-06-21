@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Wordmark } from "@/components/layout/Wordmark";
 import { Button } from "@/components/ui/button";
@@ -63,7 +63,15 @@ export function LoginPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link
+                  href="/forgot-password"
+                  className="text-sm font-medium text-ink underline-offset-4 hover:underline"
+                >
+                  Forgot Password?
+                </Link>
+              </div>
               <Input
                 id="password"
                 type="password"

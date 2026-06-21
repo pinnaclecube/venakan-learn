@@ -19,7 +19,7 @@ Short, ordered checklist to take the platform live. Check each box before announ
 - [ ] **Vercel plan supports `maxDuration = 300`** (generation + grading need it; Hobby caps at 60s).
 - [ ] **Vercel Sandbox enabled** on the project (required for code/rag/agent/cross_track grading).
 - [ ] Custom domain `learn.venakaninfo.com` verified; GoDaddy CNAME `learn → cname.vercel-dns.com`; TLS issued.
-- [ ] Supabase Auth → redirect URLs include `https://learn.venakaninfo.com/accept-invite`.
+- [ ] Supabase Auth → redirect URLs include `https://learn.venakaninfo.com/accept-invite` **and** `https://learn.venakaninfo.com/reset-password` (forgot-password flow).
 - [ ] Email/SMTP configured (Resend) so invites actually send; bump the Auth email rate limit if inviting in bulk.
 
 ## 4. Smoke test (full loop, on production)
