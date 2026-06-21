@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 96" role="img" aria-label="Venakan Info Solutions">
+  <!--
+    Placeholder Venakan Info Solutions wordmark. Replace this file with the
+    official logo (same path: /venakan-info-logo.svg) to brand the app and the
+    public auth pages. Transparent background; dark ink so it reads on the
+    light header and auth backgrounds.
+  -->
+  <text x="180" y="50" text-anchor="middle"
+        font-family="'Arial Narrow', Arial, Helvetica, sans-serif"
+        font-size="46" font-weight="800" letter-spacing="6" fill="#0F172A">VENAKAN</text>
+  <text x="180" y="80" text-anchor="middle"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="17" font-weight="500" letter-spacing="11" fill="#0F172A">INFO SOLUTIONS</text>
+</svg>

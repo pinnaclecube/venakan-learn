@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { AuthScreen } from "@/components/layout/AuthScreen";
 import { Wordmark } from "@/components/layout/Wordmark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +37,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-mist/50 p-4">
+    <AuthScreen>
       <Card className="w-full max-w-sm">
         <CardHeader className="space-y-3">
           <Wordmark className="text-lg" />
@@ -94,6 +95,6 @@ export function LoginPage() {
           </form>
         </CardContent>
       </Card>
-    </div>
+    </AuthScreen>
   );
 }

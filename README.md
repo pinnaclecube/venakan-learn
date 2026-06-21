@@ -99,10 +99,30 @@ After that, the admin can invite everyone else from `/admin/users`.
 | `/forgot-password`   | public            | Request a password-reset link by email.            |
 | `/reset-password`    | public (via link) | Set a new password from the emailed recovery link. |
 | `/`                  | any active user   | Role-aware redirect (staff → Programs, trainee → My Learning). |
-| `/settings`          | any active user   | Profile settings: edit display name, change password (from the top-right user menu). |
+| `/settings`          | any active user   | Profile settings: edit display name, change password (opened from the user menu at the bottom of the left nav). |
 | `/trainer/programs`  | admin, trainer    | Placeholder shell (built later).                   |
 | `/trainee/learning`  | trainee           | Placeholder shell (built later).                   |
 | `/admin/users`       | admin             | User provisioning: list, invite, disable.          |
+
+## Branding
+
+Two distinct marks:
+
+- **"Venakan Learn"** — the product wordmark (`Wordmark` component). Shown on
+  the **top-left** of the app header and inside the public auth cards.
+- **Venakan Info Solutions** — the company logo (`BrandLogo` component). Shown
+  on the **top-right** of the app header and in the footer of every public /
+  pre-authenticated page (login, forgot/reset password, accept invite).
+
+The authenticated **user / profile menu** (avatar, name, role → Profile
+settings, Sign out) lives at the **bottom of the left nav** (`SideNav`).
+
+**Company-logo drop-in:** the app loads the company logo from
+**`public/venakan-info-logo.svg`**. Replace that file with the official asset
+(transparent background, dark ink so it reads on the light header/auth
+backgrounds) — no build step needed. If the file is missing, `BrandLogo` falls
+back to a styled "VENAKAN / INFO SOLUTIONS" text lockup. (This is separate from
+`api/assets/venakan-logo.png`, which brands the Word/PDF **exports**.)
 
 ## Serverless API (server-only, service-role)
 
