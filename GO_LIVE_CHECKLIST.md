@@ -3,7 +3,7 @@
 Short, ordered checklist to take the platform live. Check each box before announcing.
 
 ## 1. Database (Supabase)
-- [ ] Run migrations in order: `0001` → `0002` → `0003` → `0004` → `0005` → `0006`.
+- [ ] Run migrations in order: `0001` → `0002` → `0003` → `0004` → `0005` → `0006` → `0007` → `0008`.
 - [ ] Bootstrap the first admin (`supabase/bootstrap_admin.sql` with a real auth user UUID + email).
 - [ ] Confirm the `jd-uploads` storage bucket exists and is **private**.
 - [ ] Spot-check RLS: as a trainee, you can read only your own enrollment/submissions; cohort ranking returns no other identities.
@@ -17,7 +17,7 @@ Short, ordered checklist to take the platform live. Check each box before announ
 
 ## 3. Platform config
 - [ ] **Vercel plan supports `maxDuration = 300`** (generation + grading need it; Hobby caps at 60s).
-- [ ] **Vercel Sandbox enabled** on the project (required for code/rag/agent/cross_track grading).
+- [ ] **Vercel Sandbox enabled** on the project (required for code/rag/agent/cross_track grading **and** the trainee "Run" playground via `/api/run-exercise`).
 - [ ] Custom domain `learn.venakaninfo.com` verified; GoDaddy CNAME `learn → cname.vercel-dns.com`; TLS issued.
 - [ ] Supabase Auth → redirect URLs include `https://learn.venakaninfo.com/accept-invite` **and** `https://learn.venakaninfo.com/reset-password` (forgot-password flow).
 - [ ] Email/SMTP configured (Resend) so invites actually send; bump the Auth email rate limit if inviting in bulk.

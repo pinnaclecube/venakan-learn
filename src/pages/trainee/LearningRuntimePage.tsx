@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useParams, Link } from "wouter";
 import {
   Loader2,
@@ -6,16 +13,19 @@ import {
   Lock,
   CheckCircle2,
   Send,
+  Play,
 } from "lucide-react";
 import {
   getTraineeProgram,
   submitAndGrade,
+  runExercise,
   type TraineeProgram,
   type TraineeModule,
   type RuntimeExercise,
   type RuntimeSubmission,
   type AiGrade,
   type SubmitAndGradeResult,
+  type RunExerciseResult,
 } from "@/lib/runtime";
 import { EXERCISE_TYPE_LABELS, GATE_TYPE_LABELS } from "@/lib/generation";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -26,6 +36,10 @@ import { Badge } from "@/components/ui/badge";
 import { GateStatusBadge } from "@/components/reports/StatusBadge";
 import { LessonBlocks } from "@/components/learning/LessonBlocks";
 import { ProgressRail } from "@/components/learning/ProgressRail";
+import { RunConsole } from "@/components/learning/RunConsole";
+
+// Heavy editor is lazy-loaded so it stays out of the initial bundle.
+const CodeEditor = lazy(() => import("@/components/learning/CodeEditor"));
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
@@ -126,11 +140,17 @@ function ExerciseCard({
   const [submitting, setSubmitting] = useState(false);
   const [outcome, setOutcome] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+  const [runResult, setRunResult] = useState<RunExerciseResult | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
 
   const isCodeArea =
     exercise.type === "code" ||
     exercise.type === "rag" ||
     exercise.type === "agent";
+  const canRun = isCodeArea && exercise.run_enabled === true && !locked;
+  const editorLanguage =
+    exercise.language ?? (isCodeArea ? "javascript" : "text");
 
   async function handleSubmit() {
     if (locked || !artifact.trim()) return;
@@ -140,12 +160,28 @@ function ExerciseCard({
     try {
       const result = await submitAndGrade(exercise.id, artifact);
       setArtifact("");
+      setRunResult(null);
+      setRunError(null);
       setOutcome(outcomeMessage(result));
       onSubmitted(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Submission failed.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleRun() {
+    if (!canRun || running || !artifact.trim()) return;
+    setRunning(true);
+    setRunError(null);
+    setRunResult(null);
+    try {
+      setRunResult(await runExercise(exercise.id, artifact));
+    } catch (err) {
+      setRunError(err instanceof Error ? err.message : "Run failed.");
+    } finally {
+      setRunning(false);
     }
   }
 
@@ -192,28 +228,57 @@ function ExerciseCard({
           </p>
         ) : (
           <div className="space-y-2">
-            <Textarea
-              value={artifact}
-              onChange={(e) => setArtifact(e.target.value)}
-              placeholder={
-                isCodeArea
-                  ? "Paste your solution here…"
-                  : "Write your response here…"
-              }
-              className={
-                "min-h-40 " + (isCodeArea ? "font-mono text-xs" : "")
-              }
-            />
+            {isCodeArea ? (
+              <Suspense
+                fallback={
+                  <div className="flex h-40 items-center justify-center rounded-md border border-border bg-mist/40 text-xs text-muted-foreground">
+                    Loading editor…
+                  </div>
+                }
+              >
+                <CodeEditor
+                  value={artifact}
+                  onChange={setArtifact}
+                  language={editorLanguage}
+                  placeholder="Write your solution here…"
+                />
+              </Suspense>
+            ) : (
+              <Textarea
+                value={artifact}
+                onChange={(e) => setArtifact(e.target.value)}
+                placeholder="Write your response here…"
+                className="min-h-40"
+              />
+            )}
             {error && (
               <p className="text-sm text-destructive" role="alert">
                 {error}
               </p>
             )}
             <div className="flex items-center gap-2">
+              {canRun && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleRun}
+                  disabled={running || submitting || !artifact.trim()}
+                >
+                  {running ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Running…
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4" /> Run
+                    </>
+                  )}
+                </Button>
+              )}
               <Button
                 type="button"
                 onClick={handleSubmit}
-                disabled={submitting || !artifact.trim()}
+                disabled={submitting || running || !artifact.trim()}
               >
                 {submitting ? (
                   <>
@@ -227,6 +292,9 @@ function ExerciseCard({
                 )}
               </Button>
             </div>
+            {(runResult || runError) && (
+              <RunConsole result={runResult} error={runError} />
+            )}
             {outcome && (
               <p className="text-xs font-medium text-ink" role="status">
                 {outcome}

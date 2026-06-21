@@ -101,6 +101,9 @@ export interface SandboxConfig {
   artifact_path?: string;
   /** Shell command (and args) that runs the grading/tests. */
   test_command?: string[];
+  /** Optional command the Run/playground button executes (a dry run). Falls
+   *  back to eval_command/test_command when absent. */
+  run_command?: string[];
   /** RAG: command that runs the candidate pipeline + emits metrics JSON. */
   eval_command?: string[];
   /** Cross-track: the Quality eval suite entrypoint. */

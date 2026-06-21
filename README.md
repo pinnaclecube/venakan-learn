@@ -140,6 +140,7 @@ using the service-role client.
 | Endpoint                  | Who              | Action                                                          |
 | ------------------------- | ---------------- | --------------------------------------------------------------- |
 | `POST /api/submit-and-grade` | active trainee | Queues a submission, grades it, applies the gate (Prompt 6).    |
+| `POST /api/run-exercise`     | active trainee | Playground dry run: executes the current draft in the sandbox and returns captured output. **Not** a submission — no DB writes, no gate change. |
 | `POST /api/compare-program`  | admin, trainer | Compares a draft program to the trainer's authored version; returns AI summary + suggestions (no DB writes). |
 | `POST /api/export-program`   | admin, trainer | Returns the program as a branded Word (.docx) or PDF binary download. |
 
@@ -165,6 +166,32 @@ mirrored server-side by the Prompt-6 RPCs). On submit, the trainee UI calls
 authoritative. **Only `auto_pass`** advances on the AI grade alone (graded +
 passed). Any `error` / `needs_manual_review` outcome routes to a trainer; the
 system never silently passes or fails.
+
+### Coding playground (Run)
+
+On code-type exercises (`code` / `rag` / `agent`) the trainee gets a
+syntax-highlighted **CodeMirror** editor (lazy-loaded) plus a **Run** button
+beside **Submit**:
+
+- **Run** → `POST /api/run-exercise` executes the current draft in the **same
+  isolated sandbox** used for grading (empty env, timeout/vCPU caps, always torn
+  down) and shows captured stdout/stderr/exit in an output console. It is a
+  **dry run** — nothing is recorded and no gate moves.
+- **Submit** → unchanged graded path (`/api/submit-and-grade`).
+
+Run executes `sandbox_config.run_command` if present, otherwise falls back to
+`eval_command` / `test_command`, so it works on existing exercises with no
+re-authoring. The button only appears when the exercise has a runnable command:
+`get_trainee_program` surfaces two **derived, non-sensitive** hints per exercise
+— `language` (editor highlighting) and `run_enabled` — while `sandbox_config`
+itself (hidden tests/commands) **never leaves the server**. The endpoint reads
+it via the service-role-only `get_run_context` RPC after verifying the caller is
+an enrolled trainee on the current module. Access is gated exactly like
+submission; runs are best-effort rate-limited per user.
+
+> Hidden-test exposure note: as with grading, captured stdout is shown to the
+> trainee, so a determined trainee could print fixture files — this is unchanged
+> from the Submit path. Author tests accordingly.
 
 **Sandbox swap point:** all Vercel-Sandbox specifics live in
 `api/grading/sandbox.ts` behind the `GradingSandbox` interface. To change

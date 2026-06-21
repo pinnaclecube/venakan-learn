@@ -41,6 +41,10 @@ export interface RuntimeExercise {
   type: ExerciseType;
   prompt: string;
   rubric: Rubric;
+  /** Editor highlighting hint, derived server-side from sandbox_config.runtime. */
+  language?: "javascript" | "python" | "text";
+  /** True when the exercise has a runnable command (Run/playground button). */
+  run_enabled?: boolean;
 }
 
 export interface TraineeModule {
@@ -194,6 +198,48 @@ export async function submitAndGrade(
 
   if (!res.ok) {
     throw new Error(json.error || `Grading failed (${res.status}).`);
+  }
+  return json;
+}
+
+// ---------------------------------------------------------------------------
+// Playground "Run" (Option B). A sandbox dry run of the current draft — NOT a
+// submission (nothing is recorded, no gate moves). Returns captured output.
+// ---------------------------------------------------------------------------
+export interface RunExerciseResult {
+  /** false when the exercise has no runnable command configured. */
+  ran: boolean;
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+  durationMs: number;
+  note?: string;
+}
+
+export async function runExercise(
+  exerciseId: string,
+  artifact: string,
+): Promise<RunExerciseResult> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not authenticated.");
+
+  const res = await fetch("/api/run-exercise", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ exerciseId, artifact }),
+  });
+
+  const json = (await res.json().catch(() => ({}))) as {
+    error?: string;
+  } & RunExerciseResult;
+
+  if (!res.ok) {
+    throw new Error(json.error || `Run failed (${res.status}).`);
   }
   return json;
 }
