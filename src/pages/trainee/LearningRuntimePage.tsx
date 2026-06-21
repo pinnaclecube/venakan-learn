@@ -14,6 +14,10 @@ import {
   CheckCircle2,
   Send,
   Play,
+  RotateCcw,
+  Monitor,
+  ExternalLink,
+  Info,
 } from "lucide-react";
 import {
   getTraineeProgram,
@@ -124,6 +128,64 @@ function AiGradeView({ grade }: { grade: AiGrade }) {
   );
 }
 
+// --- Small UI bits ---------------------------------------------------------
+function DeliveryBadge({ delivery }: { delivery?: "in_app" | "external" }) {
+  if (delivery === "external") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+        <ExternalLink className="h-3 w-3" /> Your environment
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-emerald/40 bg-emerald/10 px-2 py-0.5 text-[11px] font-medium text-emerald-strong">
+      <Monitor className="h-3 w-3" /> In the app
+    </span>
+  );
+}
+
+const ONBOARD_KEY = "venakan:onboard:exercises";
+
+function ExerciseOnboarding() {
+  const [dismissed, setDismissed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(ONBOARD_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  if (dismissed) return null;
+  return (
+    <div className="mb-4 flex items-start gap-3 rounded-md border border-border bg-mist/60 p-3">
+      <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-strong" />
+      <div className="flex-1 text-xs">
+        <p className="text-sm font-medium text-ink">How exercises work</p>
+        <p className="mt-0.5 text-muted-foreground">
+          <span className="font-medium text-ink">In the app</span> exercises are
+          done right here — write your solution, <span className="font-medium">Run</span>{" "}
+          to check it, then <span className="font-medium">Submit</span> to be
+          graded. <span className="font-medium text-ink">Your environment</span>{" "}
+          exercises are built in your own tools and submitted by link for review.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          try {
+            localStorage.setItem(ONBOARD_KEY, "1");
+          } catch {
+            /* ignore */
+          }
+          setDismissed(true);
+        }}
+        className="text-xs font-medium text-muted-foreground hover:text-ink"
+      >
+        Got it
+      </button>
+    </div>
+  );
+}
+
 // --- Exercise submission surface -------------------------------------------
 function ExerciseCard({
   exercise,
@@ -136,7 +198,18 @@ function ExerciseCard({
   submissions: RuntimeSubmission[];
   onSubmitted: (r: SubmitAndGradeResult) => void;
 }) {
-  const [artifact, setArtifact] = useState("");
+  const draftKey = `venakan:draft:${exercise.id}`;
+  const starter = exercise.starter_code ?? "";
+
+  const [artifact, setArtifact] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved !== null) return saved;
+    } catch {
+      /* ignore */
+    }
+    return starter;
+  });
   const [submitting, setSubmitting] = useState(false);
   const [outcome, setOutcome] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -152,6 +225,21 @@ function ExerciseCard({
   const editorLanguage =
     exercise.language ?? (isCodeArea ? "javascript" : "text");
 
+  // Autosave the draft so work is never lost on reload / navigation.
+  useEffect(() => {
+    try {
+      localStorage.setItem(draftKey, artifact);
+    } catch {
+      /* ignore quota / privacy mode */
+    }
+  }, [draftKey, artifact]);
+
+  function resetToStarter() {
+    setArtifact(starter);
+    setRunResult(null);
+    setRunError(null);
+  }
+
   async function handleSubmit() {
     if (locked || !artifact.trim()) return;
     setSubmitting(true);
@@ -159,7 +247,12 @@ function ExerciseCard({
     setOutcome(null);
     try {
       const result = await submitAndGrade(exercise.id, artifact);
-      setArtifact("");
+      setArtifact(starter);
+      try {
+        localStorage.removeItem(draftKey);
+      } catch {
+        /* ignore */
+      }
       setRunResult(null);
       setRunError(null);
       setOutcome(outcomeMessage(result));
@@ -185,6 +278,15 @@ function ExerciseCard({
     }
   }
 
+  // Cmd/Ctrl+Enter → Run (or Submit when there's nothing to run).
+  function onWorkKeyDown(e: React.KeyboardEvent) {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      if (canRun) void handleRun();
+      else void handleSubmit();
+    }
+  }
+
   const mine = submissions
     .filter((s) => s.exercise_id === exercise.id)
     .sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
@@ -196,112 +298,140 @@ function ExerciseCard({
           <CardTitle className="text-sm">
             {EXERCISE_TYPE_LABELS[exercise.type]} exercise
           </CardTitle>
-          <Badge variant="muted">{EXERCISE_TYPE_LABELS[exercise.type]}</Badge>
+          <div className="flex items-center gap-2">
+            <DeliveryBadge delivery={exercise.delivery} />
+            <Badge variant="muted">{EXERCISE_TYPE_LABELS[exercise.type]}</Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="whitespace-pre-wrap text-sm text-ink/90">
-          {exercise.prompt}
-        </p>
-
-        {exercise.rubric?.criteria?.length > 0 && (
-          <div className="rounded-md border border-border bg-mist/50 p-3">
-            <p className="mb-1.5 text-xs font-semibold text-muted-foreground">
-              Graded on
+        <div
+          className={
+            isCodeArea && !locked ? "grid gap-4 lg:grid-cols-2" : "space-y-4"
+          }
+        >
+          {/* Prompt + rubric */}
+          <div className="space-y-3">
+            <p className="whitespace-pre-wrap text-sm text-ink/90">
+              {exercise.prompt}
             </p>
-            <ul className="space-y-1">
-              {exercise.rubric.criteria.map((c, i) => (
-                <li key={i} className="text-xs text-ink/80">
-                  <span className="font-medium">{c.name}</span>
-                  {c.description ? ` — ${c.description}` : ""}
-                </li>
-              ))}
-            </ul>
+            {exercise.rubric?.criteria?.length > 0 && (
+              <div className="rounded-md border border-border bg-mist/50 p-3">
+                <p className="mb-1.5 text-xs font-semibold text-muted-foreground">
+                  Graded on
+                </p>
+                <ul className="space-y-1">
+                  {exercise.rubric.criteria.map((c, i) => (
+                    <li key={i} className="text-xs text-ink/80">
+                      <span className="font-medium">{c.name}</span>
+                      {c.description ? ` — ${c.description}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
-        )}
 
-        {/* Submission surface */}
-        {locked ? (
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Lock className="h-3.5 w-3.5" /> Submissions open when this is your
-            current module.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {isCodeArea ? (
-              <Suspense
-                fallback={
-                  <div className="flex h-40 items-center justify-center rounded-md border border-border bg-mist/40 text-xs text-muted-foreground">
-                    Loading editor…
-                  </div>
-                }
-              >
-                <CodeEditor
+          {/* Work area */}
+          {locked ? (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Lock className="h-3.5 w-3.5" /> Submissions open when this is your
+              current module.
+            </p>
+          ) : (
+            <div className="space-y-2" onKeyDownCapture={onWorkKeyDown}>
+              {isCodeArea ? (
+                <Suspense
+                  fallback={
+                    <div className="flex h-40 items-center justify-center rounded-md border border-border bg-mist/40 text-xs text-muted-foreground">
+                      Loading editor…
+                    </div>
+                  }
+                >
+                  <CodeEditor
+                    value={artifact}
+                    onChange={setArtifact}
+                    language={editorLanguage}
+                    placeholder="Write your solution here…"
+                  />
+                </Suspense>
+              ) : (
+                <Textarea
                   value={artifact}
-                  onChange={setArtifact}
-                  language={editorLanguage}
-                  placeholder="Write your solution here…"
+                  onChange={(e) => setArtifact(e.target.value)}
+                  placeholder="Write your response here…"
+                  className="min-h-40"
                 />
-              </Suspense>
-            ) : (
-              <Textarea
-                value={artifact}
-                onChange={(e) => setArtifact(e.target.value)}
-                placeholder="Write your response here…"
-                className="min-h-40"
-              />
-            )}
-            {error && (
-              <p className="text-sm text-destructive" role="alert">
-                {error}
-              </p>
-            )}
-            <div className="flex items-center gap-2">
-              {canRun && (
+              )}
+              {error && (
+                <p className="text-sm text-destructive" role="alert">
+                  {error}
+                </p>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {canRun && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleRun}
+                    disabled={running || submitting || !artifact.trim()}
+                  >
+                    {running ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" /> Running…
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4" /> Run
+                      </>
+                    )}
+                  </Button>
+                )}
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={handleRun}
-                  disabled={running || submitting || !artifact.trim()}
+                  onClick={handleSubmit}
+                  disabled={submitting || running || !artifact.trim()}
                 >
-                  {running ? (
+                  {submitting ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" /> Running…
+                      <Loader2 className="h-4 w-4 animate-spin" /> Grading in
+                      progress…
                     </>
                   ) : (
                     <>
-                      <Play className="h-4 w-4" /> Run
+                      <Send className="h-4 w-4" /> Submit
                     </>
                   )}
                 </Button>
-              )}
-              <Button
-                type="button"
-                onClick={handleSubmit}
-                disabled={submitting || running || !artifact.trim()}
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Grading in
-                    progress…
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-4 w-4" /> Submit
-                  </>
+                {isCodeArea && starter && artifact !== starter && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={resetToStarter}
+                    disabled={submitting || running}
+                  >
+                    <RotateCcw className="h-4 w-4" /> Reset
+                  </Button>
                 )}
-              </Button>
+              </div>
+              {isCodeArea && (
+                <p className="text-[11px] text-muted-foreground">
+                  {canRun
+                    ? "Run = quick check (not recorded) · Submit = graded · ⌘/Ctrl+Enter to run"
+                    : "Submit when you’re ready — your work is graded. ⌘/Ctrl+Enter to submit"}
+                </p>
+              )}
+              {(runResult || runError) && (
+                <RunConsole result={runResult} error={runError} />
+              )}
+              {outcome && (
+                <p className="text-xs font-medium text-ink" role="status">
+                  {outcome}
+                </p>
+              )}
             </div>
-            {(runResult || runError) && (
-              <RunConsole result={runResult} error={runError} />
-            )}
-            {outcome && (
-              <p className="text-xs font-medium text-ink" role="status">
-                {outcome}
-              </p>
-            )}
-          </div>
-        )}
+          )}
+        </div>
 
         {/* History for this exercise */}
         {mine.length > 0 && (
@@ -487,6 +617,8 @@ export function LearningRuntimePage() {
           {flash}
         </div>
       )}
+
+      <ExerciseOnboarding />
 
       <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
         {/* Progress rail */}

@@ -3,7 +3,7 @@
 Short, ordered checklist to take the platform live. Check each box before announcing.
 
 ## 1. Database (Supabase)
-- [ ] Run migrations in order: `0001` → `0002` → `0003` → `0004` → `0005` → `0006` → `0007` → `0008`.
+- [ ] Run migrations in order: `0001` → `0002` → `0003` → `0004` → `0005` → `0006` → `0007` → `0008` → `0009`.
 - [ ] Bootstrap the first admin (`supabase/bootstrap_admin.sql` with a real auth user UUID + email).
 - [ ] Confirm the `jd-uploads` storage bucket exists and is **private**.
 - [ ] Spot-check RLS: as a trainee, you can read only your own enrollment/submissions; cohort ranking returns no other identities.

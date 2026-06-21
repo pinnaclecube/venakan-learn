@@ -167,6 +167,22 @@ authoritative. **Only `auto_pass`** advances on the AI grade alone (graded +
 passed). Any `error` / `needs_manual_review` outcome routes to a trainer; the
 system never silently passes or fails.
 
+### In-app vs external exercises
+
+Each exercise has a `delivery` flag (migration `0009`):
+
+- **`in_app`** (default) — done right in the playground: a syntax-highlighted
+  editor seeded with the exercise's `starter_code`, with **autosave** (drafts
+  persist in `localStorage` per exercise), a **Reset** to starter, and
+  `⌘/Ctrl+Enter` to Run. The card shows an **"In the app"** badge.
+- **`external`** — done in the trainee's own environment and submitted by
+  reference (public repo / deployed URL); shown with a **"Your environment"**
+  badge. The structured external submission surface + trainer review of the
+  link land in a later phase; for now the gate/grading path is unchanged.
+
+A dismissible "How exercises work" note on the program page explains the two
+modes to trainees.
+
 ### Coding playground (Run)
 
 On code-type exercises (`code` / `rag` / `agent`) the trainee gets a

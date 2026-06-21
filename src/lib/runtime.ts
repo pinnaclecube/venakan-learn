@@ -41,6 +41,10 @@ export interface RuntimeExercise {
   type: ExerciseType;
   prompt: string;
   rubric: Rubric;
+  /** Where the exercise is done: in the app playground vs the trainee's own env. */
+  delivery?: "in_app" | "external";
+  /** Optional scaffold the editor is seeded with. */
+  starter_code?: string;
   /** Editor highlighting hint, derived server-side from sandbox_config.runtime. */
   language?: "javascript" | "python" | "text";
   /** True when the exercise has a runnable command (Run/playground button). */
