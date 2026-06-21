@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
-import { Loader2, Sparkles, Check, Undo2, ArrowLeft } from "lucide-react";
+import {
+  Loader2,
+  Sparkles,
+  Check,
+  Undo2,
+  ArrowLeft,
+  Download,
+  GitCompare,
+  FileText,
+  FileType,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
   rollback,
@@ -22,6 +32,14 @@ import {
 } from "@/components/program/RefineDialog";
 import { DiffView } from "@/components/program/DiffView";
 import { AssignmentDialog } from "@/components/program/AssignmentDialog";
+import { CompareDialog } from "@/components/program/CompareDialog";
+import { exportProgram, type ExportFormat } from "@/lib/program-tools";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import {
   loadProgramAssignment,
   type ProgramAssignment,
@@ -54,6 +72,9 @@ export function ProgramDetailPage() {
   const [refineTarget, setRefineTarget] = useState<RefineTarget | null>(null);
   const [pending, setPending] = useState<PendingDiff | null>(null);
   const [rollingBack, setRollingBack] = useState(false);
+
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -136,6 +157,19 @@ export function ProgramDetailPage() {
     setAssignOpen(true);
   }
 
+  async function onExport(format: ExportFormat) {
+    if (!programId) return;
+    setExporting(true);
+    setError(null);
+    try {
+      await exportProgram(programId, format);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Export failed.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   async function onRollback() {
     if (!pending) return;
     setRollingBack(true);
@@ -185,6 +219,35 @@ export function ProgramDetailPage() {
             <Badge variant={program.status === "published" ? "success" : "muted"}>
               {program.status}
             </Badge>
+            {program.status === "draft" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCompareOpen(true)}
+              >
+                <GitCompare className="h-4 w-4" /> Compare with my version
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" disabled={exporting}>
+                  {exporting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  Download
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => void onExport("docx")}>
+                  <FileText className="h-4 w-4" /> Word (.docx)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => void onExport("pdf")}>
+                  <FileType className="h-4 w-4" /> PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {program.status === "draft" ? (
               <Button size="sm" onClick={onPublish}>
                 Publish
@@ -478,6 +541,13 @@ export function ProgramDetailPage() {
         open={assignOpen}
         onOpenChange={setAssignOpen}
         onDone={() => void load()}
+      />
+
+      <CompareDialog
+        programId={program.id}
+        open={compareOpen}
+        onOpenChange={setCompareOpen}
+        onApplied={() => void load()}
       />
     </div>
   );

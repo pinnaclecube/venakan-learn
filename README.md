@@ -115,6 +115,8 @@ using the service-role client.
 | Endpoint                  | Who              | Action                                                          |
 | ------------------------- | ---------------- | --------------------------------------------------------------- |
 | `POST /api/submit-and-grade` | active trainee | Queues a submission, grades it, applies the gate (Prompt 6).    |
+| `POST /api/compare-program`  | admin, trainer | Compares a draft program to the trainer's authored version; returns AI summary + suggestions (no DB writes). |
+| `POST /api/export-program`   | admin, trainer | Returns the program as a branded Word (.docx) or PDF binary download. |
 
 ## Grading & Sandbox
 
@@ -161,6 +163,54 @@ For local/explicit auth, set `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, and
 `VERCEL_PROJECT_ID` (see `.env.example`). These are **server-only**: never
 prefixed with `VITE_`, never in the client bundle, and never passed into the
 candidate sandbox env.
+
+## Program compare & branded export
+
+On a program detail page (`/trainer/programs/:programId`, admin + trainer), staff
+can reconcile the app-generated program against their own authored version and
+download a branded copy.
+
+**Compare & apply (draft programs only):**
+
+1. **"Compare with my version"** (visible only while the program is `draft`)
+   opens a dialog. Staff either upload a `.docx`/`.pdf` (stored in the existing
+   `jd-uploads` bucket under `${tenantId}/compare/…`) or paste raw text.
+2. `POST /api/compare-program` loads the app-generated program (modules,
+   lessons, exercises, rubrics), reads the authored version (mammoth for `.docx`,
+   a Claude document block for `.pdf`, raw text for paste), and asks Claude
+   (`claude-opus-4-8`) for a **summary + concrete suggestions**. No DB writes.
+3. Each suggestion has an Accept/Reject toggle (default Accept). **"Apply N
+   accepted changes"** calls the `apply_program_changes` RPC, which applies the
+   accepted edits, **logs each as a `refinement` row**, and **bumps
+   `program.version`**.
+
+Compare/apply is **staff-only and draft-only** — the RPC raises
+`Only draft programs can be edited.` for published programs, and it edits
+modules/exercises **only — it never touches enrollments or submissions**.
+
+**Branded export (any program — draft or published):** the **"Download"**
+dropdown offers **Word (.docx)** and **PDF**. `POST /api/export-program` builds a
+well-formatted, on-brand document (cover with an ink banner, module sections with
+gate badges, objectives, materials, rendered lessons, and rubric tables) using
+the app palette (ink `#0F172A`, emerald `#059669`, mist `#F1F5F9`) and streams it
+back as a binary download. `.docx` uses the `docx` package; PDF uses `pdfkit`.
+
+**Logo drop-in:** place a PNG at **`api/assets/venakan-logo.png`** (white/reversed
+or transparent, for the dark ink banner) to brand exports. If it is absent, the
+exports fall back to a styled "Venakan **Learn**" text wordmark — no build step
+needed. See `api/assets/README.md`.
+
+These features reuse the existing Anthropic env (`ANTHROPIC_API_KEY`,
+`ANTHROPIC_MODEL = claude-opus-4-8`) and Supabase env
+(`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`) — **no new secrets**.
+
+### Migration `0007_program_compare.sql`
+
+Adds the `apply_program_changes(uuid, jsonb)` `SECURITY DEFINER` RPC (staff- and
+draft-gated inside; `revoke … from public; grant execute … to authenticated`).
+Depends on `0001` (helpers, `profile`), `0002` (`program` / `module` /
+`exercise` / `refinement`), and `0005` (`module.lesson`). Run it via the Supabase
+SQL editor or `supabase db push`.
 
 ## Deployment (Vercel)
 
